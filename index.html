@@ -100,7 +100,7 @@
 </head>
 <body>
 
-  <h1>KBS 授業レビュー（非公式）</h1>
+  <h1>KBS 授業レビュー&履修管理（非公式）</h1>
   <p class="muted">
     ※このページは、KBS M48学習支援が非公式に作成したものです。<br>
     ※KBS以外の学生・教員の皆様方・その他外部の方への共有はお控えください。<br>
@@ -210,12 +210,12 @@
 
         <div class="split">
           <div>
-            <label class="muted">授業名検索（選択の補助）</label>
+            <label class="muted">授業名検索</label>
             <input id="classSearch" placeholder="例：統計 / データ / 経営" />
           </div>
 
           <div>
-            <label class="muted">この授業の区分（管理者設定）</label>
+            <label class="muted">授業区分</label>
             <div class="pill" id="classCategoryPill">-</div>
           </div>
         </div>
@@ -226,16 +226,16 @@
             <input id="interest" type="number" min="1" max="5" placeholder="例：3" />
           </div>
           <div style="flex:1; min-width:220px;">
-            <label class="muted">単位の取りやすさ (1-5)</label>
+            <label class="muted">先生の優しさ (1-5)</label>
+            <input id="kindness" type="number" min="1" max="5" placeholder="例：3" />
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label class="muted">単位の取りやすさ (楽：1-難：5)</label>
             <input id="easiness" type="number" min="1" max="5" placeholder="例：3" />
           </div>
           <div style="flex:1; min-width:220px;">
-            <label class="muted">課題の重さ (1-5)</label>
+            <label class="muted">課題の量 (少：1-多：5)</label>
             <input id="workload" type="number" min="1" max="5" placeholder="例：3" />
-          </div>
-          <div style="flex:1; min-width:220px;">
-            <label class="muted">先生の優しさ (1-5)</label>
-            <input id="kindness" type="number" min="1" max="5" placeholder="例：3" />
           </div>
         </div>
 
@@ -405,7 +405,7 @@
       el("creditsView").classList.toggle("hidden", tab !== "credits");
 
       el("tabHint").textContent = tab === "review"
-        ? "授業レビュー（平均のみ公開）"
+        ? "授業レビュー"
         : "単位管理（自分専用）";
 
       if (tab === "credits") bootCreditsView();
