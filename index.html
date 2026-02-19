@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Grad Review</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 980px;
+      margin: 40px auto;
+      padding: 20px;
+      line-height: 1.5;
+    }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    input, select {
+      margin-bottom: 10px;
+      padding: 10px;
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      background: #fff;
+    }
+    button {
+      padding: 10px 14px;
+      cursor: pointer;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      background: #fff;
+    }
+    button:hover { background: #f6f6f6; }
+    .muted { color: #666; font-size: 14px; }
+    .danger { border-color: #ffb0b0; background: #fff1f1; }
+    .danger:hover { background: #ffe5e5; }
+    .success { border-color: #b6f2c3; background: #f1fff4; }
+    .success:hover { background: #e7ffed; }
+
+    .card {
+      border: 1px solid #e5e5e5;
+      padding: 14px;
+      margin-top: 12px;
+      border-radius: 14px;
+      background: #fff;
+    }
+    .card h3 { margin: 0 0 6px 0; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .pill {
+      border: 1px solid #eee;
+      border-radius: 999px;
+      padding: 6px 10px;
+      display: inline-block;
+      font-size: 13px;
+      background: #fafafa;
+    }
+    .topbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .search {
+      flex: 1;
+      min-width: 220px;
+      margin: 0;
+    }
+    .twoCol {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 820px) {
+      .twoCol { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    .split {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .split > * { flex: 1; min-width: 220px; }
+
+    .hidden { display: none; }
+
+    /* credits table */
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; vertical-align: top; }
+    th { font-size: 13px; color: #666; font-weight: 600; }
+    .badge { font-size: 12px; padding: 4px 8px; border: 1px solid #eee; border-radius: 999px; background: #fafafa; display: inline-block; }
+    .mini { width: auto; min-width: 140px; margin: 0; }
+  </style>
+</head>
+<body>
+
+  <h1>研究科 授業レビュー（平均のみ公開）</h1>
+  <p class="muted">
+    ※授業名は管理者が登録（classes）→レビューは class_id に紐づくので表記揺れゼロ。<br>
+    ※区分（基礎/専門/自由）は classes.category を参照（管理者が決める前提）。<br>
+    ※利用は慶應メール（@keio.jp）でログイン必須。
+  </p>
+
+  <!-- ✅ タブ切替（ログイン後に表示） -->
+  <div class="topbar hidden" id="tabBar" style="justify-content:space-between;">
+    <div class="topbar">
+      <button id="tabReviewBtn" class="success">レビュー</button>
+      <button id="tabCreditsBtn">単位管理</button>
+    </div>
+    <span class="muted" id="tabHint"></span>
+  </div>
+
+  <!-- 認証カード -->
+  <div class="card" id="authCard">
+    <h2>ログイン（@keio.jp）</h2>
+    <p class="muted">
+      新規登録 → メール確認（Confirm email） → ログイン、の順。<br>
+      ※Confirm email をONにしてるので、確認前はログインできません。
+    </p>
+
+    <div class="split">
+      <div>
+        <label class="muted">メール（@keio.jp）</label>
+        <input id="authEmail" type="email" placeholder="yourname@keio.jp" />
+      </div>
+      <div>
+        <label class="muted">パスワード</label>
+        <input id="authPassword" type="password" placeholder="6文字以上推奨" />
+      </div>
+    </div>
+
+    <div class="topbar">
+      <button id="signUpBtn" class="success">新規登録</button>
+      <button id="signInBtn">ログイン</button>
+      <button id="signOutBtn" data-action="signout" class="danger hidden">ログアウト</button>
+      <span id="authStatus" class="muted"></span>
+    </div>
+  </div>
+
+  <!-- 管理者パネル -->
+  <div class="card hidden" id="adminCard">
+    <div class="topbar">
+      <button id="adminToggleBtn">管理者モードを開く</button>
+      <span class="muted" id="adminStatus">（閉じています）</span>
+      <span class="pill" id="mePill">-</span>
+      <span class="pill" id="adminBadge" style="display:none;">ADMIN</span>
+      <button id="signOutBtn2" data-action="signout" class="danger">ログアウト</button>
+    </div>
+
+    <div id="adminPanel" style="display:none; margin-top:10px;">
+      <div class="topbar">
+        <span class="pill">管理者パネル</span>
+        <span class="muted">授業の追加・編集・削除（classes）</span>
+      </div>
+
+      <div class="card" style="margin-top:10px;">
+        <h3>授業を追加</h3>
+        <div class="split">
+          <div>
+            <label class="muted">授業名（正式名）</label>
+            <input id="adminNewName" placeholder="例：データサイエンス特論" />
+          </div>
+          <div>
+            <label class="muted">区分</label>
+            <select id="adminNewCategory">
+              <option value="基礎科目">基礎科目</option>
+              <option value="専門科目">専門科目</option>
+              <option value="自由科目">自由科目</option>
+              <option value="未分類">未分類</option>
+            </select>
+          </div>
+        </div>
+
+        <label class="muted">別名（aliases：カンマ区切りで任意）</label>
+        <input id="adminNewAliases" placeholder="例：データ特論, DS特論" />
+
+        <div class="topbar">
+          <button id="adminAddBtn" class="success">追加</button>
+          <span class="muted" id="adminAddStatus"></span>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:10px;">
+        <h3>登録済み授業</h3>
+        <p class="muted">
+          編集はその場で上書き、削除は授業ごと削除（FK Cascadeなら関連レビューも消えます）。
+        </p>
+        <div id="adminClassList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ アプリ本体 -->
+  <div class="hidden" id="appBody">
+
+    <!-- ✅ レビューView -->
+    <div class="twoCol" id="reviewView">
+      <div class="card">
+        <h2>投稿フォーム</h2>
+
+        <label class="muted">授業を選択</label>
+        <select id="class_select">
+          <option value="">読み込み中...</option>
+        </select>
+
+        <div class="split">
+          <div>
+            <label class="muted">授業名検索（選択の補助）</label>
+            <input id="classSearch" placeholder="例：統計 / データ / 経営" />
+          </div>
+
+          <div>
+            <label class="muted">この授業の区分（管理者設定）</label>
+            <div class="pill" id="classCategoryPill">-</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div style="flex:1; min-width:220px;">
+            <label class="muted">面白さ (1-5)</label>
+            <input id="interest" type="number" min="1" max="5" placeholder="例：4" />
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label class="muted">単位の取りやすさ (1-5)</label>
+            <input id="easiness" type="number" min="1" max="5" placeholder="例：3" />
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label class="muted">課題の重さ (1-5)</label>
+            <input id="workload" type="number" min="1" max="5" placeholder="例：2" />
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label class="muted">先生の優しさ (1-5)</label>
+            <input id="kindness" type="number" min="1" max="5" placeholder="例：5" />
+          </div>
+        </div>
+
+        <div class="topbar">
+          <button id="submitBtn" class="success">投稿する</button>
+          <span id="status" class="muted"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="topbar">
+          <button id="backBtn" style="display:none;">← 一覧に戻る</button>
+          <span class="pill" id="viewModePill">一覧表示</span>
+        </div>
+
+        <h2 id="listTitle">授業一覧（平均）</h2>
+
+        <div class="topbar">
+          <input id="search" class="search" placeholder="授業名で検索（例：統計）" />
+          <select id="categoryFilter" style="width:auto; min-width:170px; margin:0;">
+            <option value="">全区分</option>
+            <option value="基礎科目">基礎科目</option>
+            <option value="専門科目">専門科目</option>
+            <option value="自由科目">自由科目</option>
+            <option value="未分類">未分類</option>
+          </select>
+          <span class="pill" id="totalCountPill">全投稿: -</span>
+        </div>
+
+        <div id="classList"></div>
+      </div>
+    </div>
+
+    <!-- ✅ 単位管理View -->
+    <div class="twoCol hidden" id="creditsView">
+      <div class="card">
+        <h2>進捗サマリ</h2>
+
+        <div class="topbar">
+          <span class="pill" id="pillFound">基礎取得: -</span>
+          <span class="pill" id="pillMajor">専門取得: -</span>
+          <span class="pill" id="pillTotal">基礎+専門: -</span>
+        </div>
+
+        <div class="topbar">
+          <span class="pill" id="pillNeedFound">基礎 残り: -</span>
+          <span class="pill" id="pillNeedTotal">合計 残り: -</span>
+        </div>
+
+        <!-- ✅ 見込み（合格＋履修中）※ taking-only は作らない -->
+        <div class="topbar">
+          <span class="pill" id="pillFoundExp">基礎（合格＋履修中）: -</span>
+          <span class="pill" id="pillMajorExp">専門（合格＋履修中）: -</span>
+          <span class="pill" id="pillTotalExp">基礎+専門（合格＋履修中）: -</span>
+        </div>
+
+        <div class="topbar">
+          <span class="pill" id="pillNeedFoundExp">基礎（合格＋履修中）残り: -</span>
+          <span class="pill" id="pillNeedTotalExp">合計（合格＋履修中）残り: -</span>
+        </div>
+
+        <div class="topbar">
+          <span class="pill" id="pillGpa">平均点（9段階）: -</span>
+          <span class="muted">※ completed のみ集計。D=0は平均に含む。未設定は除外。</span>
+        </div>
+
+        <div class="card" style="margin-top:10px;">
+          <h3 style="margin-top:0;">表示フィルタ</h3>
+          <div class="topbar">
+            <input id="creditSearch" class="search" placeholder="授業名で検索（例：統計）" />
+            <select id="creditCategoryFilter" class="mini">
+              <option value="">全区分</option>
+              <option value="基礎科目">基礎科目</option>
+              <option value="専門科目">専門科目</option>
+              <option value="自由科目">自由科目</option>
+              <option value="未分類">未分類</option>
+            </select>
+            <select id="creditStatusFilter" class="mini">
+              <option value="">全ステータス</option>
+              <option value="planned">予定</option>
+              <option value="taking">履修中</option>
+              <option value="completed">修了</option>
+              <option value="dropped">中止</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="muted" style="margin-top:10px;">
+          使い方：右の表で「ステータス」と「成績」を選んで保存。
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>授業一覧（自分用）</h2>
+        <div id="creditTableWrap"></div>
+        <div class="muted" id="creditSaveStatus" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabaseUrl = "https://cqmploqkewqwtyxfpaqs.supabase.co";
+    const supabaseKey = "sb_publishable_b6oab9Si7uq6pUSb5kfDnA_QajBOSW1";
+    const ALLOWED_DOMAIN = "@keio.jp";
+
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        storageKey: "grad-review-auth",
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
+    window.supabase = supabase;
+
+    const el = (id) => document.getElementById(id);
+
+    window.addEventListener("error", (e) => {
+      console.error("JS Error:", e.error || e.message);
+      alert("JSエラーで止まりました。Consoleを見てね: " + (e.message || ""));
+    });
+    window.addEventListener("unhandledrejection", (e) => {
+      console.error("Unhandled Rejection:", e.reason);
+      alert("Promiseエラーで止まりました。Consoleを見てね: " + (e.reason?.message || e.reason || ""));
+    });
+
+    function show(idOrEl, on) {
+      const node = typeof idOrEl === "string" ? el(idOrEl) : idOrEl;
+      node.classList.toggle("hidden", !on);
+    }
+    function normalize(s) { return (s ?? "").trim(); }
+    function normalizeCategory(cat) {
+      const v = normalize(cat);
+      if (v === "基礎科目" || v === "専門科目" || v === "自由科目") return v;
+      if (!v) return "未分類";
+      return v;
+    }
+    function isAllowedEmail(email) {
+      return normalize(email).toLowerCase().endsWith(ALLOWED_DOMAIN);
+    }
+    function round2(x) { return (Math.round(x * 100) / 100).toFixed(2); }
+
+    function lockAuthButtons(lock) {
+      el("signUpBtn").disabled = lock;
+      el("signInBtn").disabled = lock;
+      el("authEmail").disabled = lock;
+      el("authPassword").disabled = lock;
+    }
+
+    let classById = new Map();
+    let classes = [];
+    let isAdmin = false;
+
+    let currentTab = "review";
+    let creditsBooted = false;
+
+    function setTab(tab) {
+      currentTab = tab;
+
+      el("tabReviewBtn").classList.toggle("success", tab === "review");
+      el("tabCreditsBtn").classList.toggle("success", tab === "credits");
+
+      el("reviewView").classList.toggle("hidden", tab !== "review");
+      el("creditsView").classList.toggle("hidden", tab !== "credits");
+
+      el("tabHint").textContent = tab === "review"
+        ? "授業レビュー（平均のみ公開）"
+        : "単位管理（自分専用）";
+
+      if (tab === "credits") bootCreditsView();
+    }
+
+    async function refreshAdminFlag() {
+      isAdmin = false;
+      el("adminBadge").style.display = "none";
+
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session) return false;
+
+      const { data, error } = await supabase.rpc("is_admin");
+      if (error) {
+        console.warn("is_admin rpc error:", error);
+        return false;
+      }
+      isAdmin = !!data;
+      el("adminBadge").style.display = isAdmin ? "inline-block" : "none";
+      return isAdmin;
+    }
+
+    async function ensureAdmin() {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session) { alert("先にログインしてね"); return false; }
+
+      const { data, error } = await supabase.rpc("is_admin");
+      if (error) { alert("管理者判定エラー: " + error.message); return false; }
+      if (!data) { alert("管理者のみ操作できます"); return false; }
+      return true;
+    }
+
+    async function setUIBySession() {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+
+      const authed = !!session;
+      show("authCard", !authed);
+      show("appBody", authed);
+      show("adminCard", authed);
+      show("signOutBtn", authed);
+      show("tabBar", authed);
+
+      if (authed) {
+        const email = session.user?.email ?? "";
+        el("mePill").textContent = email ? `ログイン中: ${email}` : "ログイン中";
+      } else {
+        el("mePill").textContent = "-";
+        setAdminPanelVisible(false);
+        el("authStatus").textContent = "";
+      }
+      return authed;
+    }
+
+    function clearAppStateForLogout() {
+      try { history.replaceState({}, "", window.location.pathname); } catch {}
+      try { document.title = "Grad Review"; } catch {}
+
+      classes = [];
+      classById = new Map();
+      isAdmin = false;
+
+      currentTab = "review";
+      creditsBooted = false;
+
+      const list = el("classList"); if (list) list.innerHTML = "";
+      const adminList = el("adminClassList"); if (adminList) adminList.innerHTML = "";
+      const total = el("totalCountPill"); if (total) total.textContent = "全投稿: -";
+      const catPill = el("classCategoryPill"); if (catPill) catPill.textContent = "-";
+
+      const cwrap = el("creditTableWrap"); if (cwrap) cwrap.innerHTML = "";
+      const cs = el("creditSaveStatus"); if (cs) cs.textContent = "";
+
+      const pf = el("pillFound"); if (pf) pf.textContent = "基礎取得: -";
+      const pm = el("pillMajor"); if (pm) pm.textContent = "専門取得: -";
+      const pt = el("pillTotal"); if (pt) pt.textContent = "基礎+専門: -";
+      const pnf = el("pillNeedFound"); if (pnf) pnf.textContent = "基礎 残り: -";
+      const pnt = el("pillNeedTotal"); if (pnt) pnt.textContent = "合計 残り: -";
+
+      const pfe = el("pillFoundExp"); if (pfe) pfe.textContent = "基礎（合格＋履修中）: -";
+      const pme = el("pillMajorExp"); if (pme) pme.textContent = "専門（合格＋履修中）: -";
+      const pte = el("pillTotalExp"); if (pte) pte.textContent = "基礎+専門（合格＋履修中）: -";
+      const pnfe = el("pillNeedFoundExp"); if (pnfe) pnfe.textContent = "基礎（合格＋履修中）残り: -";
+      const pnte = el("pillNeedTotalExp"); if (pnte) pnte.textContent = "合計（合格＋履修中）残り: -";
+
+      const pg = el("pillGpa"); if (pg) pg.textContent = "平均点（9段階）: -";
+
+      const s1 = el("creditSearch"); if (s1) s1.value = "";
+      const s2 = el("creditCategoryFilter"); if (s2) s2.value = "";
+      const s3 = el("creditStatusFilter"); if (s3) s3.value = "";
+    }
+
+    async function doSignOutAndResetUI() {
+      el("authStatus").textContent = "ログアウト中…";
+      try { await supabase.auth.signOut(); }
+      catch (e) { console.warn("signOut error:", e); }
+      clearAppStateForLogout();
+      await setUIBySession();
+      setTab("review");
+      alert("ログアウトしました");
+    }
+
+    document.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.('[data-action="signout"]');
+      if (!btn) return;
+      doSignOutAndResetUI();
+    });
+
+    function validateReviewInputs({ class_id, interest, easiness, workload, kindness }) {
+      if (!class_id) return "授業を選択してね";
+      const nums = [interest, easiness, workload, kindness];
+      if (nums.some(n => Number.isNaN(n))) return "評価は全部数字で入れてね（1〜5）";
+      if (nums.some(n => n < 1 || n > 5)) return "評価は1〜5の範囲で入れてね";
+      return null;
+    }
+
+    function getSelectedClassId() {
+      const params = new URLSearchParams(window.location.search);
+      const v = params.get("class_id");
+      return v ? parseInt(v, 10) : null;
+    }
+    function setSelectedClassId(classId) {
+      const params = new URLSearchParams(window.location.search);
+      params.set("class_id", String(classId));
+      history.pushState({}, "", `${window.location.pathname}?${params.toString()}`);
+      const c = classById.get(classId);
+      document.title = c ? `Grad Review - ${c.name}` : "Grad Review";
+    }
+    function clearSelectedClassId() {
+      history.pushState({}, "", window.location.pathname);
+      document.title = "Grad Review";
+    }
+
+    async function loadClasses() {
+      const { data, error } = await supabase
+        .from("classes")
+        .select("id, name, aliases, category")
+        .order("name", { ascending: true });
+
+      if (error) { alert("classesの読み込みに失敗: " + error.message); return; }
+
+      classes = data || [];
+      classById = new Map(classes.map(c => [c.id, { ...c, category: normalizeCategory(c.category) }]));
+
+      renderClassSelect(classes);
+      updateClassCategoryPill();
+      if (isAdmin) renderAdminClassList();
+    }
+
+    function renderClassSelect(list) {
+      const sel = el("class_select");
+      sel.innerHTML = "";
+
+      const opt0 = document.createElement("option");
+      opt0.value = "";
+      opt0.textContent = "授業を選択...";
+      sel.appendChild(opt0);
+
+      for (const c of list) {
+        const opt = document.createElement("option");
+        opt.value = String(c.id);
+        const cat = normalizeCategory(c.category);
+        opt.textContent = cat === "未分類" ? c.name : `${c.name}（${cat}）`;
+        sel.appendChild(opt);
+      }
+    }
+
+    function filterClassSelectByQuery(q) {
+      const query = normalize(q).toLowerCase();
+      if (!query) { renderClassSelect(classes); return; }
+      const filtered = classes.filter(c => {
+        const name = (c.name ?? "").toLowerCase();
+        const aliases = (c.aliases ?? "").toLowerCase();
+        const cat = (c.category ?? "").toLowerCase();
+        return name.includes(query) || aliases.includes(query) || cat.includes(query);
+      });
+      renderClassSelect(filtered);
+    }
+
+    function updateClassCategoryPill() {
+      const cid = parseInt(el("class_select").value, 10);
+      const c = classById.get(cid);
+      el("classCategoryPill").textContent = c ? normalizeCategory(c.category) : "-";
+    }
+
+    async function loadAndRender() {
+      const selectedId = getSelectedClassId();
+
+      if (selectedId) {
+        const c = classById.get(selectedId);
+        el("backBtn").style.display = "inline-block";
+        el("viewModePill").textContent = c ? `授業ページ: ${c.name}` : "授業ページ";
+        el("listTitle").textContent = c ? `授業：${c.name}（平均）` : "授業（平均）";
+
+        el("search").disabled = true;
+        el("search").value = "";
+        el("search").placeholder = "授業ページでは検索は使いません";
+        el("categoryFilter").disabled = true;
+        el("categoryFilter").value = "";
+
+        el("class_select").value = String(selectedId);
+        updateClassCategoryPill();
+      } else {
+        el("backBtn").style.display = "none";
+        el("viewModePill").textContent = "一覧表示";
+        el("listTitle").textContent = "授業一覧（平均）";
+
+        el("search").disabled = false;
+        el("search").placeholder = "授業名で検索（例：統計）";
+        el("categoryFilter").disabled = false;
+      }
+
+      const { data, error } = await supabase
+        .from("reviews")
+        .select("class_id, interest, easiness, workload, kindness");
+
+      if (error) {
+        console.error(error);
+        el("classList").innerHTML = "<p class='muted'>読み込みエラー。Consoleを見てね。</p>";
+        return;
+      }
+
+      el("totalCountPill").textContent = `全投稿: ${data.length}`;
+
+      const stats = new Map();
+      for (const r of data) {
+        const cid = r.class_id;
+        if (!cid) continue;
+        if (!stats.has(cid)) stats.set(cid, { count: 0, sumI: 0, sumE: 0, sumW: 0, sumK: 0 });
+        const s = stats.get(cid);
+        s.count += 1;
+        s.sumI += Number(r.interest) || 0;
+        s.sumE += Number(r.easiness) || 0;
+        s.sumW += Number(r.workload) || 0;
+        s.sumK += Number(r.kindness) || 0;
+      }
+
+      const q = normalize(el("search").value).toLowerCase();
+      const categoryFilter = el("categoryFilter").value;
+
+      const rows = [...stats.entries()]
+        .map(([class_id, s]) => {
+          const c = classById.get(class_id);
+          const name = c ? c.name : `Unknown class_id=${class_id}`;
+          const category = c ? normalizeCategory(c.category) : "未分類";
+          return {
+            class_id,
+            name,
+            category,
+            count: s.count,
+            avgI: s.sumI / s.count,
+            avgE: s.sumE / s.count,
+            avgW: s.sumW / s.count,
+            avgK: s.sumK / s.count,
+          };
+        })
+        .filter(x => {
+          if (selectedId) return x.class_id === selectedId;
+          if (categoryFilter && x.category !== categoryFilter) return false;
+          if (q) return x.name.toLowerCase().includes(q);
+          return true;
+        })
+        .sort((a, b) => (b.count - a.count) || a.name.localeCompare(b.name, "ja"));
+
+      const wrap = el("classList");
+      wrap.innerHTML = "";
+
+      if (rows.length === 0) {
+        wrap.innerHTML = selectedId
+          ? "<p class='muted'>この授業の投稿がまだありません</p>"
+          : "<p class='muted'>該当する授業がありません</p>";
+        return;
+      }
+
+      for (const row of rows) {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const title = document.createElement("h3");
+        title.textContent = row.name;
+
+        const meta = document.createElement("div");
+        meta.className = "muted";
+        meta.innerHTML = `投稿数: ${row.count}　<span class="pill">区分: ${row.category}</span>`;
+
+        const grid = document.createElement("div");
+        grid.className = "grid";
+
+        const p1 = document.createElement("div"); p1.className = "pill"; p1.textContent = `面白さ: ${round2(row.avgI)}`;
+        const p2 = document.createElement("div"); p2.className = "pill"; p2.textContent = `単位の取りやすさ: ${round2(row.avgE)}`;
+        const p3 = document.createElement("div"); p3.className = "pill"; p3.textContent = `課題の重さ: ${round2(row.avgW)}`;
+        const p4 = document.createElement("div"); p4.className = "pill"; p4.textContent = `優しさ: ${round2(row.avgK)}`;
+
+        grid.appendChild(p1); grid.appendChild(p2); grid.appendChild(p3); grid.appendChild(p4);
+
+        const actions = document.createElement("div");
+        actions.className = "topbar";
+
+        const pickBtn = document.createElement("button");
+        pickBtn.textContent = "この授業をフォームで選択";
+        pickBtn.addEventListener("click", () => {
+          el("class_select").value = String(row.class_id);
+          updateClassCategoryPill();
+          el("class_select").focus();
+        });
+        actions.appendChild(pickBtn);
+
+        if (!getSelectedClassId()) {
+          const openBtn = document.createElement("button");
+          openBtn.textContent = "この授業を開く";
+          openBtn.addEventListener("click", () => {
+            setSelectedClassId(row.class_id);
+            loadAndRender();
+          });
+          actions.appendChild(openBtn);
+        }
+
+        card.appendChild(title);
+        card.appendChild(meta);
+        card.appendChild(grid);
+        card.appendChild(actions);
+        wrap.appendChild(card);
+      }
+    }
+
+    function setAdminPanelVisible(visible) {
+      el("adminPanel").style.display = visible ? "block" : "none";
+      el("adminStatus").textContent = visible ? "（開いています）" : "（閉じています）";
+      el("adminToggleBtn").textContent = visible ? "管理者モードを閉じる" : "管理者モードを開く";
+    }
+
+    function renderAdminClassList() {
+      const wrap = el("adminClassList");
+      wrap.innerHTML = "";
+
+      for (const c of classes) {
+        const row = document.createElement("div");
+        row.className = "card";
+        row.style.marginTop = "10px";
+
+        const nameEsc = (c.name ?? "").replaceAll('"','&quot;');
+        const aliEsc  = ((c.aliases ?? "") + "").replaceAll('"','&quot;');
+        const catNow  = normalizeCategory(c.category);
+
+        row.innerHTML = `
+          <div class="topbar">
+            <span class="pill">ID: ${c.id}</span>
+            <span class="pill">区分: ${catNow}</span>
+          </div>
+
+          <div class="split">
+            <div>
+              <label class="muted">授業名</label>
+              <input data-k="name" data-id="${c.id}" value="${nameEsc}" />
+            </div>
+            <div>
+              <label class="muted">区分</label>
+              <select data-k="category" data-id="${c.id}">
+                <option value="基礎科目" ${catNow==="基礎科目" ? "selected":""}>基礎科目</option>
+                <option value="専門科目" ${catNow==="専門科目" ? "selected":""}>専門科目</option>
+                <option value="自由科目" ${catNow==="自由科目" ? "selected":""}>自由科目</option>
+                <option value="未分類" ${catNow==="未分類" ? "selected":""}>未分類</option>
+              </select>
+            </div>
+          </div>
+
+          <label class="muted">aliases（カンマ区切り）</label>
+          <input data-k="aliases" data-id="${c.id}" value="${aliEsc}" />
+
+          <div class="topbar">
+            <button data-action="save" data-id="${c.id}" class="success">保存</button>
+            <button data-action="delete" data-id="${c.id}" class="danger">授業を削除</button>
+            <span class="muted" id="adminMsg-${c.id}"></span>
+          </div>
+        `;
+        wrap.appendChild(row);
+      }
+
+      wrap.querySelectorAll("button[data-action='save']").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (!(await ensureAdmin())) return;
+
+          const id = parseInt(btn.dataset.id, 10);
+          const nameEl = wrap.querySelector(`input[data-k="name"][data-id="${id}"]`);
+          const catEl  = wrap.querySelector(`select[data-k="category"][data-id="${id}"]`);
+          const aliEl  = wrap.querySelector(`input[data-k="aliases"][data-id="${id}"]`);
+          const msgEl  = el(`adminMsg-${id}`);
+
+          const name = normalize(nameEl.value);
+          const category = normalizeCategory(catEl.value);
+          const aliases = normalize(aliEl.value);
+
+          if (!name) { alert("授業名は必須"); return; }
+
+          msgEl.textContent = "保存中…";
+          const { error } = await supabase.from("classes").update({ name, category, aliases }).eq("id", id);
+
+          if (error) { msgEl.textContent = ""; alert("保存エラー: " + error.message); return; }
+
+          msgEl.textContent = "保存しました";
+          await loadClasses();
+          await loadAndRender();
+          if (currentTab === "credits") { await creditFetchMine(); creditRenderTable(); creditCalcSummary(); }
+        });
+      });
+
+      wrap.querySelectorAll("button[data-action='delete']").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (!(await ensureAdmin())) return;
+
+          const id = parseInt(btn.dataset.id, 10);
+          const c = classById.get(id);
+          const name = c ? c.name : `ID=${id}`;
+
+          if (!confirm(`【注意】授業「${name}」を削除します。\n（FK Cascadeなら関連レビューも消えます）\n本当に削除する？`)) return;
+
+          const { error } = await supabase.from("classes").delete().eq("id", id);
+          if (error) { alert("削除エラー: " + error.message); return; }
+
+          alert("授業を削除しました");
+          if (getSelectedClassId() === id) clearSelectedClassId();
+
+          await loadClasses();
+          await loadAndRender();
+          if (currentTab === "credits") { await creditFetchMine(); creditRenderTable(); creditCalcSummary(); }
+        });
+      });
+    }
+
+    const CREDIT_REQUIREMENTS = { foundation: 12, total: 38 };
+
+    const CREDIT_GRADE_SCORE = {
+      "A+": 9, "A": 8, "A-": 7,
+      "B+": 6, "B": 5, "B-": 4,
+      "C+": 3, "C": 2, "C-": 1,
+      "D": 0
+    };
+
+    const CREDIT_GRADE_OPTIONS = ["", "A+","A","A-","B+","B","B-","C+","C","C-","D"];
+    const CREDIT_STATUS_OPTIONS = [
+      { v: "planned", label: "予定" },
+      { v: "taking", label: "履修中" },
+      { v: "completed", label: "修了" },
+      { v: "dropped", label: "中止" },
+    ];
+
+    let creditMineByClassId = new Map();
+
+    function creditBuildSelect(options, value) {
+      const s = document.createElement("select");
+      s.style.width = "auto";
+      s.style.minWidth = "140px";
+      s.style.margin = "0";
+
+      for (const opt of options) {
+        const o = document.createElement("option");
+        if (typeof opt === "string") {
+          o.value = opt;
+          o.textContent = opt === "" ? "（未設定）" : opt;
+        } else {
+          o.value = opt.v;
+          o.textContent = opt.label;
+        }
+        if (o.value === (value ?? "")) o.selected = true;
+        s.appendChild(o);
+      }
+      return s;
+    }
+
+    function creditPassesFilters(c, mine) {
+      const q = normalize(el("creditSearch").value).toLowerCase();
+      const cat = el("creditCategoryFilter").value;
+      const st = el("creditStatusFilter").value;
+
+      if (cat && normalizeCategory(c.category) !== cat) return false;
+      if (st && (mine?.status ?? "planned") !== st) return false;
+      if (q && !(c.name ?? "").toLowerCase().includes(q)) return false;
+
+      return true;
+    }
+
+    async function creditFetchMine() {
+      const { data, error } = await supabase
+        .from("user_courses")
+        .select("class_id, status, grade, credits");
+
+      if (error) {
+        alert("user_courses読み込み失敗: " + error.message);
+        throw error;
+      }
+      creditMineByClassId = new Map((data ?? []).map(r => [r.class_id, r]));
+    }
+
+    // ✅ 取得（completed合格）＋ 見込み（合格＋履修中）＋ 平均（completedのみ）
+    function creditCalcSummary() {
+      let foundCredits = 0;
+      let majorCredits = 0;
+
+      let foundExpected = 0; // 合格（completed） + 履修中（taking）
+      let majorExpected = 0;
+
+      let avgSum = 0;
+      let avgCount = 0;
+
+      for (const [classId, row] of creditMineByClassId.entries()) {
+        const c = classById.get(classId);
+        if (!c) continue;
+
+        const category = normalizeCategory(c.category);
+        const status = row.status ?? "planned";
+        const grade = row.grade ?? null;
+        const score = grade ? (CREDIT_GRADE_SCORE[grade] ?? null) : null;
+
+        const isFoundation = category === "基礎科目";
+        const isMajor = category === "専門科目";
+        const inTotal = isFoundation || isMajor;
+
+        const passed = (status === "completed" && score !== null && score >= 1);
+
+        // 取得
+        if (passed) {
+          if (isFoundation) foundCredits += 2;
+          if (isMajor) majorCredits += 2;
+        }
+
+        // 見込み（合格＋履修中）
+        if (status === "taking") {
+          if (isFoundation) foundExpected += 2;
+          if (isMajor) majorExpected += 2;
+        } else if (passed) {
+          if (isFoundation) foundExpected += 2;
+          if (isMajor) majorExpected += 2;
+        }
+
+        // 平均（completedのみ、基礎+専門のみ、D=0含む）
+        if (status === "completed" && score !== null && inTotal) {
+          avgSum += score;
+          avgCount += 1;
+        }
+      }
+
+      const total = foundCredits + majorCredits;
+      const totalExp = foundExpected + majorExpected;
+
+      const needFound = Math.max(0, CREDIT_REQUIREMENTS.foundation - foundCredits);
+      const needTotal = Math.max(0, CREDIT_REQUIREMENTS.total - total);
+
+      const needFoundExp = Math.max(0, CREDIT_REQUIREMENTS.foundation - foundExpected);
+      const needTotalExp = Math.max(0, CREDIT_REQUIREMENTS.total - totalExp);
+
+      el("pillFound").textContent = `基礎取得: ${foundCredits} / ${CREDIT_REQUIREMENTS.foundation}`;
+      el("pillMajor").textContent = `専門取得: ${majorCredits}`;
+      el("pillTotal").textContent = `基礎+専門: ${total} / ${CREDIT_REQUIREMENTS.total}`;
+      el("pillNeedFound").textContent = `基礎 残り: ${needFound}`;
+      el("pillNeedTotal").textContent = `合計 残り: ${needTotal}`;
+
+      el("pillFoundExp").textContent = `基礎（合格＋履修中）: ${foundExpected} / ${CREDIT_REQUIREMENTS.foundation}`;
+      el("pillMajorExp").textContent = `専門（合格＋履修中）: ${majorExpected}`;
+      el("pillTotalExp").textContent = `基礎+専門（合格＋履修中）: ${totalExp} / ${CREDIT_REQUIREMENTS.total}`;
+      el("pillNeedFoundExp").textContent = `基礎（合格＋履修中）残り: ${needFoundExp}`;
+      el("pillNeedTotalExp").textContent = `合計（合格＋履修中）残り: ${needTotalExp}`;
+
+      const avgText = avgCount > 0 ? (avgSum / avgCount).toFixed(2) : "-";
+      el("pillGpa").textContent = `平均点（9段階）: ${avgText}`;
+    }
+
+    async function creditUpsertMine(class_id, patch) {
+      el("creditSaveStatus").textContent = "保存中…";
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user?.id;
+      if (!uid) {
+        el("creditSaveStatus").textContent = "";
+        alert("ログインが切れました。もう一度ログインしてね。");
+        return;
+      }
+
+      const current = creditMineByClassId.get(class_id);
+
+      const payload = {
+        user_id: uid,
+        class_id,
+        credits: 2,
+        status: current?.status ?? "planned",
+        grade: current?.grade ?? null,
+        ...patch,
+      };
+
+      const { error } = await supabase
+        .from("user_courses")
+        .upsert(payload, { onConflict: "user_id,class_id" });
+
+      if (error) {
+        el("creditSaveStatus").textContent = "";
+        alert("保存エラー: " + error.message);
+        return;
+      }
+
+      await creditFetchMine();
+      creditRenderTable();
+      creditCalcSummary();
+      el("creditSaveStatus").textContent = "保存しました";
+      setTimeout(() => { el("creditSaveStatus").textContent = ""; }, 1200);
+    }
+
+    async function creditDeleteMine(class_id, classNameForConfirm) {
+      if (!confirm(`「${classNameForConfirm}」の履修記録を削除しますか？`)) return;
+
+      el("creditSaveStatus").textContent = "削除中…";
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user?.id;
+      if (!uid) {
+        el("creditSaveStatus").textContent = "";
+        alert("ログインが切れました。もう一度ログインしてね。");
+        return;
+      }
+
+      const { error } = await supabase
+        .from("user_courses")
+        .delete()
+        .eq("user_id", uid)
+        .eq("class_id", class_id);
+
+      if (error) {
+        el("creditSaveStatus").textContent = "";
+        alert("削除エラー: " + error.message);
+        return;
+      }
+
+      await creditFetchMine();
+      creditRenderTable();
+      creditCalcSummary();
+      el("creditSaveStatus").textContent = "削除しました";
+      setTimeout(() => { el("creditSaveStatus").textContent = ""; }, 1200);
+    }
+
+    function creditRenderTable() {
+      const wrap = el("creditTableWrap");
+      wrap.innerHTML = "";
+
+      const table = document.createElement("table");
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>授業</th>
+            <th>区分</th>
+            <th>単位</th>
+            <th>ステータス</th>
+            <th>成績</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+      `;
+
+      const tbody = document.createElement("tbody");
+
+      for (const c of classes) {
+        const mine = creditMineByClassId.get(c.id);
+        if (!creditPassesFilters(c, mine)) continue;
+
+        const tr = document.createElement("tr");
+
+        const tdName = document.createElement("td");
+        tdName.innerHTML = `<div><strong>${c.name}</strong></div><div class="muted">ID: ${c.id}</div>`;
+
+        const tdCat = document.createElement("td");
+        tdCat.innerHTML = `<span class="badge">${normalizeCategory(c.category)}</span>`;
+
+        const tdCr = document.createElement("td");
+        tdCr.textContent = "2";
+
+        const tdStatus = document.createElement("td");
+        const statusSel = creditBuildSelect(CREDIT_STATUS_OPTIONS, mine?.status ?? "planned");
+        tdStatus.appendChild(statusSel);
+
+        const tdGrade = document.createElement("td");
+        const gradeSel = creditBuildSelect(CREDIT_GRADE_OPTIONS, mine?.grade ?? "");
+        tdGrade.appendChild(gradeSel);
+
+        const tdAct = document.createElement("td");
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "success";
+        saveBtn.textContent = "保存";
+        saveBtn.addEventListener("click", async () => {
+          await creditUpsertMine(c.id, {
+            status: statusSel.value,
+            grade: gradeSel.value === "" ? null : gradeSel.value
+          });
+        });
+
+        const clearBtn = document.createElement("button");
+        clearBtn.className = "danger";
+        clearBtn.textContent = "削除";
+        clearBtn.addEventListener("click", async () => {
+          await creditDeleteMine(c.id, c.name);
+        });
+
+        tdAct.appendChild(saveBtn);
+        tdAct.appendChild(clearBtn);
+
+        tr.appendChild(tdName);
+        tr.appendChild(tdCat);
+        tr.appendChild(tdCr);
+        tr.appendChild(tdStatus);
+        tr.appendChild(tdGrade);
+        tr.appendChild(tdAct);
+
+        tbody.appendChild(tr);
+      }
+
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+    }
+
+    async function bootCreditsView() {
+      if (!creditsBooted) {
+        el("creditSearch").addEventListener("input", () => creditRenderTable());
+        el("creditCategoryFilter").addEventListener("change", () => creditRenderTable());
+        el("creditStatusFilter").addEventListener("change", () => creditRenderTable());
+        creditsBooted = true;
+      }
+
+      if (classes.length === 0) await loadClasses();
+      await creditFetchMine();
+      creditRenderTable();
+      creditCalcSummary();
+    }
+
+    el("tabReviewBtn").addEventListener("click", () => setTab("review"));
+    el("tabCreditsBtn").addEventListener("click", () => setTab("credits"));
+
+    el("signUpBtn").addEventListener("click", async () => {
+      const email = normalize(el("authEmail").value).toLowerCase();
+      const password = el("authPassword").value;
+
+      if (!isAllowedEmail(email)) { alert("@keio.jp のメールだけ登録できます"); return; }
+      if (!password || password.length < 6) { alert("パスワードは6文字以上がおすすめ"); return; }
+
+      lockAuthButtons(true);
+      el("authStatus").textContent = "登録中…";
+      try {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) { el("authStatus").textContent = ""; alert("登録エラー: " + error.message); return; }
+        el("authStatus").textContent = "確認メールを送信しました。メール内リンクを開いてからログインしてね。";
+      } finally {
+        lockAuthButtons(false);
+      }
+    });
+
+    el("signInBtn").addEventListener("click", async () => {
+      const email = normalize(el("authEmail").value).toLowerCase();
+      const password = el("authPassword").value;
+
+      if (!isAllowedEmail(email)) { alert("@keio.jp のメールだけログインできます"); return; }
+
+      clearAppStateForLogout();
+      await setUIBySession();
+      setTab("review");
+
+      lockAuthButtons(true);
+      el("authStatus").textContent = "ログイン中…";
+      try {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) { el("authStatus").textContent = ""; alert("ログインエラー: " + error.message); return; }
+        el("authStatus").textContent = "ログインしました";
+      } finally {
+        lockAuthButtons(false);
+      }
+    });
+
+    el("adminToggleBtn").addEventListener("click", async () => {
+      if (!(await ensureAdmin())) return;
+      const visible = el("adminPanel").style.display !== "none";
+      setAdminPanelVisible(!visible);
+      if (!visible) renderAdminClassList();
+    });
+
+    el("adminAddBtn").addEventListener("click", async () => {
+      if (!(await ensureAdmin())) return;
+
+      const name = normalize(el("adminNewName").value);
+      const category = normalizeCategory(el("adminNewCategory").value);
+      const aliases = normalize(el("adminNewAliases").value);
+      if (!name) { alert("授業名は必須"); return; }
+
+      el("adminAddStatus").textContent = "追加中…";
+      const { error } = await supabase.from("classes").insert([{ name, category, aliases }]);
+      if (error) { el("adminAddStatus").textContent = ""; alert("追加エラー: " + error.message); return; }
+
+      el("adminAddStatus").textContent = "追加しました";
+      el("adminNewName").value = "";
+      el("adminNewAliases").value = "";
+      await loadClasses();
+      await loadAndRender();
+      renderAdminClassList();
+      if (currentTab === "credits") { await creditFetchMine(); creditRenderTable(); creditCalcSummary(); }
+    });
+
+    el("classSearch").addEventListener("input", (e) => filterClassSelectByQuery(e.target.value));
+    el("class_select").addEventListener("change", updateClassCategoryPill);
+    el("search").addEventListener("input", () => { if (!getSelectedClassId()) loadAndRender(); });
+    el("categoryFilter").addEventListener("change", () => { if (!getSelectedClassId()) loadAndRender(); });
+    el("backBtn").addEventListener("click", () => { clearSelectedClassId(); loadAndRender(); });
+
+    el("submitBtn").addEventListener("click", async () => {
+      const class_id = parseInt(el("class_select").value, 10);
+      const interest = parseInt(el("interest").value, 10);
+      const easiness = parseInt(el("easiness").value, 10);
+      const workload = parseInt(el("workload").value, 10);
+      const kindness = parseInt(el("kindness").value, 10);
+
+      const msg = validateReviewInputs({ class_id, interest, easiness, workload, kindness });
+      if (msg) { alert(msg); return; }
+
+      el("status").textContent = "投稿中…";
+      const { error } = await supabase.from("reviews").insert([{ class_id, interest, easiness, workload, kindness }]);
+      if (error) { el("status").textContent = ""; alert("エラー: " + error.message); return; }
+
+      el("status").textContent = "";
+      alert("投稿成功！");
+      el("interest").value = "";
+      el("easiness").value = "";
+      el("workload").value = "";
+      el("kindness").value = "";
+      await loadAndRender();
+    });
+
+    window.addEventListener("popstate", () => loadAndRender());
+
+    supabase.auth.onAuthStateChange(async () => {
+      const authed = await setUIBySession();
+      if (authed) {
+        await refreshAdminFlag();
+        await loadClasses();
+        await loadAndRender();
+        setTab("review");
+      } else {
+        clearAppStateForLogout();
+        setTab("review");
+      }
+    });
+
+    (async function boot() {
+      setAdminPanelVisible(false);
+      const authed = await setUIBySession();
+      if (authed) {
+        await refreshAdminFlag();
+        await loadClasses();
+        await loadAndRender();
+        setTab("review");
+      } else {
+        setTab("review");
+      }
+    })();
+  </script>
+</body>
+</html>
