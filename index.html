@@ -388,6 +388,57 @@
       el("authPassword").disabled = lock;
     }
 
+    // =========================
+    // ✅ self-heal (getSessionが固まる問題対策)
+    // =========================
+    const AUTH_STORAGE_KEY = "grad-review-auth"; // supabase auth.storageKey と一致させる
+    let __healing = false;
+
+    function nukeAuthStorage() {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+
+      // grad-review-auth 系を全部消す（ロック/セッション/PKCE系が混じっててもまとめて掃除）
+      const target = keys.filter(k =>
+        k && (k.includes(AUTH_STORAGE_KEY) || k.includes("supabase") || k.includes("sb-") || k.includes("auth"))
+      );
+
+      console.log("remove keys:", target);
+      target.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+
+      try { sessionStorage.clear(); } catch {}
+    }
+
+    function hardHealAndReload(reason) {
+      if (__healing) return;
+      __healing = true;
+
+      console.warn("Auth stuck -> self heal", reason);
+      try { el("authStatus").textContent = "ログイン状態が固まりました。復旧中…"; } catch {}
+      try { lockAuthButtons(true); } catch {}
+
+      nukeAuthStorage();
+
+      // そのまま reload（これで site data 手動削除が不要になる）
+      try { location.reload(); } catch {}
+    }
+
+    async function getSessionWithTimeout(ms = 5000) {
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(`getSession timeout (${ms}ms)`)), ms));
+      const { data } = await Promise.race([supabase.auth.getSession(), timeout]);
+      return data; // { session }
+    }
+
+    // アプリ起動時に「詰み」を先に検知して復旧
+    async function authSelfHealIfStuck() {
+      try {
+        await getSessionWithTimeout(5000);
+      } catch (e) {
+        hardHealAndReload(e);
+      }
+    }
+    // =========================
+
     let classById = new Map();
     let classes = [];
     let isAdmin = false;
@@ -415,8 +466,15 @@
       isAdmin = false;
       el("adminBadge").style.display = "none";
 
-      const { data: sess } = await supabase.auth.getSession();
-      if (!sess.session) return false;
+      let sess;
+      try {
+        const got = await getSessionWithTimeout(5000);
+        sess = got?.session;
+      } catch (e) {
+        hardHealAndReload(e);
+        return false;
+      }
+      if (!sess) return false;
 
       const { data, error } = await supabase.rpc("is_admin");
       if (error) {
@@ -429,8 +487,15 @@
     }
 
     async function ensureAdmin() {
-      const { data: sess } = await supabase.auth.getSession();
-      if (!sess.session) { alert("先にログインしてください"); return false; }
+      let sess;
+      try {
+        const got = await getSessionWithTimeout(5000);
+        sess = got?.session;
+      } catch (e) {
+        hardHealAndReload(e);
+        return false;
+      }
+      if (!sess) { alert("先にログインしてください"); return false; }
 
       const { data, error } = await supabase.rpc("is_admin");
       if (error) { alert("管理者判定エラー: " + error.message); return false; }
@@ -439,8 +504,15 @@
     }
 
     async function setUIBySession() {
-      const { data } = await supabase.auth.getSession();
-      const session = data.session;
+      let session = null;
+      try {
+        const got = await getSessionWithTimeout(5000);
+        session = got?.session ?? null;
+      } catch (e) {
+        // ここで固まってる＝問題の本体なので復旧
+        hardHealAndReload(e);
+        return false;
+      }
 
       const authed = !!session;
       show("authCard", !authed);
@@ -974,8 +1046,18 @@
 
     async function creditUpsertMine(class_id, patch) {
       el("creditSaveStatus").textContent = "保存中…";
-      const { data: sess } = await supabase.auth.getSession();
-      const uid = sess.session?.user?.id;
+
+      // ここも getSession が固まると詰むのでタイムアウト付きにする
+      let sess;
+      try {
+        const got = await getSessionWithTimeout(5000);
+        sess = got?.session;
+      } catch (e) {
+        hardHealAndReload(e);
+        return;
+      }
+
+      const uid = sess?.user?.id;
       if (!uid) {
         el("creditSaveStatus").textContent = "";
         alert("ログインが切れました。もう一度ログインしてください。");
@@ -1014,8 +1096,17 @@
       if (!confirm(`「${classNameForConfirm}」の履修記録を削除しますか？`)) return;
 
       el("creditSaveStatus").textContent = "削除中…";
-      const { data: sess } = await supabase.auth.getSession();
-      const uid = sess.session?.user?.id;
+
+      let sess;
+      try {
+        const got = await getSessionWithTimeout(5000);
+        sess = got?.session;
+      } catch (e) {
+        hardHealAndReload(e);
+        return;
+      }
+
+      const uid = sess?.user?.id;
       if (!uid) {
         el("creditSaveStatus").textContent = "";
         alert("ログインが切れました。もう一度ログインしてね。");
@@ -1249,6 +1340,10 @@
 
     (async function boot() {
       setAdminPanelVisible(false);
+
+      // ✅ ここが今回の本体：起動時に「詰み」を検知して復旧
+      await authSelfHealIfStuck();
+
       const authed = await setUIBySession();
       if (authed) {
         await refreshAdminFlag();
