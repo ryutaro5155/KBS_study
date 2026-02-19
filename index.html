@@ -100,11 +100,11 @@
 </head>
 <body>
 
-  <h1>研究科 授業レビュー（平均のみ公開）</h1>
+  <h1>KBS 授業レビュー（非公式）</h1>
   <p class="muted">
-    ※授業名は管理者が登録（classes）→レビューは class_id に紐づくので表記揺れゼロ。<br>
-    ※区分（基礎/専門/自由）は classes.category を参照（管理者が決める前提）。<br>
-    ※利用は慶應メール（@keio.jp）でログイン必須。
+    ※このページは、KBS M48学習支援が非公式に作成したものです。<br>
+    ※KBS以外の学生・教員の皆様方・その他外部の方への共有はお控えください。<br>
+    ※利用には慶應メール（@keio.jp）でのログインが必須です。
   </p>
 
   <!-- ✅ タブ切替（ログイン後に表示） -->
@@ -120,8 +120,7 @@
   <div class="card" id="authCard">
     <h2>ログイン（@keio.jp）</h2>
     <p class="muted">
-      新規登録 → メール確認（Confirm email） → ログイン、の順。<br>
-      ※Confirm email をONにしてるので、確認前はログインできません。
+      新規登録 → メール確認 → ログイン、の順です。<br>
     </p>
 
     <div class="split">
@@ -131,7 +130,7 @@
       </div>
       <div>
         <label class="muted">パスワード</label>
-        <input id="authPassword" type="password" placeholder="6文字以上推奨" />
+        <input id="authPassword" type="password" placeholder="6文字以上" />
       </div>
     </div>
 
@@ -147,7 +146,7 @@
   <div class="card hidden" id="adminCard">
     <div class="topbar">
       <button id="adminToggleBtn">管理者モードを開く</button>
-      <span class="muted" id="adminStatus">（閉じています）</span>
+      <span class="muted" id="adminStatus">（学習支援のみ使用）</span>
       <span class="pill" id="mePill">-</span>
       <span class="pill" id="adminBadge" style="display:none;">ADMIN</span>
       <button id="signOutBtn2" data-action="signout" class="danger">ログアウト</button>
@@ -156,7 +155,7 @@
     <div id="adminPanel" style="display:none; margin-top:10px;">
       <div class="topbar">
         <span class="pill">管理者パネル</span>
-        <span class="muted">授業の追加・編集・削除（classes）</span>
+        <span class="muted">授業の追加・編集・削除</span>
       </div>
 
       <div class="card" style="margin-top:10px;">
@@ -224,7 +223,7 @@
         <div class="row">
           <div style="flex:1; min-width:220px;">
             <label class="muted">面白さ (1-5)</label>
-            <input id="interest" type="number" min="1" max="5" placeholder="例：4" />
+            <input id="interest" type="number" min="1" max="5" placeholder="例：3" />
           </div>
           <div style="flex:1; min-width:220px;">
             <label class="muted">単位の取りやすさ (1-5)</label>
@@ -232,11 +231,11 @@
           </div>
           <div style="flex:1; min-width:220px;">
             <label class="muted">課題の重さ (1-5)</label>
-            <input id="workload" type="number" min="1" max="5" placeholder="例：2" />
+            <input id="workload" type="number" min="1" max="5" placeholder="例：3" />
           </div>
           <div style="flex:1; min-width:220px;">
             <label class="muted">先生の優しさ (1-5)</label>
-            <input id="kindness" type="number" min="1" max="5" placeholder="例：5" />
+            <input id="kindness" type="number" min="1" max="5" placeholder="例：3" />
           </div>
         </div>
 
@@ -255,7 +254,7 @@
         <h2 id="listTitle">授業一覧（平均）</h2>
 
         <div class="topbar">
-          <input id="search" class="search" placeholder="授業名で検索（例：統計）" />
+          <input id="search" class="search" placeholder="授業名で検索（例：会計管理）" />
           <select id="categoryFilter" style="width:auto; min-width:170px; margin:0;">
             <option value="">全区分</option>
             <option value="基礎科目">基礎科目</option>
@@ -300,13 +299,13 @@
 
         <div class="topbar">
           <span class="pill" id="pillGpa">平均点（9段階）: -</span>
-          <span class="muted">※ completed のみ集計。D=0は平均に含む。未設定は除外。</span>
+          <span class="muted">※ 修了 のみ集計。Dも平均に含む。未設定は除外。</span>
         </div>
 
         <div class="card" style="margin-top:10px;">
           <h3 style="margin-top:0;">表示フィルタ</h3>
           <div class="topbar">
-            <input id="creditSearch" class="search" placeholder="授業名で検索（例：統計）" />
+            <input id="creditSearch" class="search" placeholder="授業名で検索（例：会計管理）" />
             <select id="creditCategoryFilter" class="mini">
               <option value="">全区分</option>
               <option value="基礎科目">基礎科目</option>
@@ -325,7 +324,7 @@
         </div>
 
         <div class="muted" style="margin-top:10px;">
-          使い方：右の表で「ステータス」と「成績」を選んで保存。
+          使い方：右の表で「ステータス」と「成績」を選んで保存(1個ずつ！)。
         </div>
       </div>
 
@@ -431,7 +430,7 @@
 
     async function ensureAdmin() {
       const { data: sess } = await supabase.auth.getSession();
-      if (!sess.session) { alert("先にログインしてね"); return false; }
+      if (!sess.session) { alert("先にログインしてください"); return false; }
 
       const { data, error } = await supabase.rpc("is_admin");
       if (error) { alert("管理者判定エラー: " + error.message); return false; }
@@ -516,10 +515,10 @@
     });
 
     function validateReviewInputs({ class_id, interest, easiness, workload, kindness }) {
-      if (!class_id) return "授業を選択してね";
+      if (!class_id) return "授業を選択してください";
       const nums = [interest, easiness, workload, kindness];
-      if (nums.some(n => Number.isNaN(n))) return "評価は全部数字で入れてね（1〜5）";
-      if (nums.some(n => n < 1 || n > 5)) return "評価は1〜5の範囲で入れてね";
+      if (nums.some(n => Number.isNaN(n))) return "評価は全部数字で入れてください（1〜5）";
+      if (nums.some(n => n < 1 || n > 5)) return "評価は1〜5の範囲で入れてください";
       return null;
     }
 
@@ -979,7 +978,7 @@
       const uid = sess.session?.user?.id;
       if (!uid) {
         el("creditSaveStatus").textContent = "";
-        alert("ログインが切れました。もう一度ログインしてね。");
+        alert("ログインが切れました。もう一度ログインしてください。");
         return;
       }
 
@@ -1149,7 +1148,7 @@
       try {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) { el("authStatus").textContent = ""; alert("登録エラー: " + error.message); return; }
-        el("authStatus").textContent = "確認メールを送信しました。メール内リンクを開いてからログインしてね。";
+        el("authStatus").textContent = "確認メールを送信しました。メール内リンクを開いてからログインしてください。";
       } finally {
         lockAuthButtons(false);
       }
